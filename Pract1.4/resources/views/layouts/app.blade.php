@@ -13,7 +13,6 @@
         <span class="navbar-brand">Práctica 1.4 · Gestión de productos</span>
         @auth
             <div class="d-flex align-items-center gap-2 text-white small">
-                <span>{{ auth()->user()->name }}</span>
                 <span class="badge text-bg-secondary">{{ auth()->user()->role }}</span>
                 <form method="POST" action="{{ route('logout') }}" class="m-0">
                     @csrf
