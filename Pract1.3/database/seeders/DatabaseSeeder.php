@@ -11,22 +11,23 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         User::firstOrCreate(
-            ['email' => 'profesor@utt.test'],
-            ['name' => 'Profesor Demo', 'password' => 'Password123!', 'role' => User::PROFESOR]
+            ['email' => 'profesor@gmail.com'],
+            ['name' => 'Profesor Demo', 'password' => '123456789', 'role' => User::PROFESOR]
         );
 
         $alumnos = [
-            ['Ana Martínez', 'ana@utt.test', 2, 9.8],
-            ['Luis Hernández', 'luis@utt.test', 5, 7.4],
-            ['María López', 'maria@utt.test', 0, 8.9],
-            ['Carlos Ramírez', 'carlos@utt.test', 12, 6.2],
-            ['Sofía Torres', 'sofia@utt.test', 1, 9.1],
+            ['Joshue', 'joshue@gmail.com', 2, 9.8],
+            ['Daniel', 'daniel@gmail.com', 5, 7.4],
+            ['Emiliano', 'emiliano@gmail.com', 0, 8.9],
+            ['Zoe', 'zoe@gmail.com', 12, 6.2],
+            ['Diego', 'diego@gmail.com', 1, 9.1],
+            ['Milo', 'milo@gmail.com', 3, 7.9],
         ];
 
         foreach ($alumnos as [$nombre, $email, $faltas, $calificacion]) {
             $user = User::firstOrCreate(
                 ['email' => $email],
-                ['name' => $nombre, 'password' => 'Password123!', 'role' => User::ALUMNO]
+                ['name' => $nombre, 'password' => '123456789', 'role' => User::ALUMNO]
             );
 
             Alumno::firstOrCreate(
