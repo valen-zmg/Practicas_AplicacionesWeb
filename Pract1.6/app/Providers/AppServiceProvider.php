@@ -1,24 +1,49 @@
 <?php
 
-namespace App\Providers;
+namespace App\Http\Controllers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Models\Partida;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 
-class AppServiceProvider extends ServiceProvider
+class AdminController extends Controller
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
+    /** Todas las partidas, en cualquier estado */
+    public function partidas()
     {
-        //
+        $partidas = Partida::with(['jugadorX', 'jugadorO'])->latest()->paginate(15);
+
+        return view('admin.partidas', compact('partidas'));
     }
 
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
+    /** Historial general: partidas terminadas o canceladas de todos los jugadores */
+    public function historial()
     {
-        //
+        $partidas = Partida::with(['jugadorX', 'jugadorO', 'ganador'])
+            ->whereIn('estado', [Partida::TERMINADA, Partida::CANCELADA])
+            ->latest()->paginate(15);
+
+        return view('admin.historial', compact('partidas'));
+    }
+
+    /** Cancelar una partida en curso (o en espera). Se bloquea el registro para no chocar con un movimiento. */
+    public function cancelar(Partida $partida): RedirectResponse
+    {
+        $cancelada = DB::transaction(function () use ($partida) {
+            $p = Partida::whereKey($partida->id)->lockForUpdate()->firstOrFail();
+
+            if (! $p->enJuego()) {
+                return false;
+            }
+
+            $p->update(['estado' => Partida::CANCELADA, 'resultado' => 'cancelada']);
+
+            return true;
+        });
+
+        return back()->with(
+            $cancelada ? 'success' : 'error',
+            $cancelada ? 'Partida cancelada.' : 'Solo se pueden cancelar partidas en espera o en curso.'
+        );
     }
 }
