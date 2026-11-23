@@ -14,9 +14,8 @@ class PartidaController extends Controller
     public function inicio(Request $request)
     {
         $yo = $request->user();
-
         if ($yo->esAdmin()) {
-            return view('inicio'); // el panel del administrador se agrega en la parte 4
+            return redirect()->route('admin.partidas.index');
         }
 
         $disponibles = Partida::with('jugadorX')
