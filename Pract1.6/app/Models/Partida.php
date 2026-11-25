@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Partida extends Model
-{
+class Partida extends Model //representa una partida del gatikko
+{   //estados
     public const ESPERANDO = 'esperando';
     public const EN_CURSO = 'en_curso';
     public const TERMINADA = 'terminada';
@@ -23,9 +23,10 @@ class Partida extends Model
         'jugador_x_id', 'jugador_o_id', 'tablero', 'turno', 'estado', 'resultado', 'ganador_id',
     ];
 
+    //relaciones
     public function jugadorX(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'jugador_x_id')->withTrashed();
+        return $this->belongsTo(User::class, 'jugador_x_id')->withTrashed();//para que su nombre siga apareciendo en el historial aunque sea dado de baja
     }
     public function jugadorO(): BelongsTo
     {
@@ -36,7 +37,7 @@ class Partida extends Model
         return $this->belongsTo(User::class, 'ganador_id')->withTrashed();
     }
     public function movimientos(): HasMany
-    {
+    {   //lista de todas las jugadas individuales registradas en esta partida
         return $this->hasMany(Movimiento::class);
     }
 
@@ -46,11 +47,11 @@ class Partida extends Model
         return $query->where(fn ($q) => $q->where('jugador_x_id', $userId)->orWhere('jugador_o_id', $userId));
     }
     public function participa(int $userId): bool
-    {
+    {   //si el usuario indicado forma parte de esta partida
         return $this->jugador_x_id === $userId || $this->jugador_o_id === $userId;
     }
     public function simboloDe(int $userId): ?string
-    {
+    {   //que le toca usar al usuario en esta partida
         return match (true) {
             $this->jugador_x_id === $userId => 'X',
             $this->jugador_o_id === $userId => 'O',
@@ -60,6 +61,7 @@ class Partida extends Model
     public function jugadorEnTurnoId(): ?int
     {
         return $this->turno === 'X' ? $this->jugador_x_id : $this->jugador_o_id;
+        //vuelve el ID del jugador al que le corresponde tirar en el turno actual
     }
 
     /** @return string[] las 9 casillas: 'X', 'O' o '-' */
@@ -70,7 +72,7 @@ class Partida extends Model
 
     //devuelve 'X', 'O' o null según el tablero recibido
     public static function calcularGanador(array $c): ?string
-    {
+    {   //revisa las 8 líneas posibles del tablero
         foreach (self::LINEAS as [$a, $b, $d]) {
             if ($c[$a] !== '-' && $c[$a] === $c[$b] && $c[$a] === $c[$d]) {
                 return $c[$a];
@@ -80,7 +82,7 @@ class Partida extends Model
         return null;
     }
     public function enJuego(): bool
-    {
+    {   //la partida sigue abierta
         return in_array($this->estado, [self::ESPERANDO, self::EN_CURSO], true);
     }
 

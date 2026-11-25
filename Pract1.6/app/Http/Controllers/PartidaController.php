@@ -9,42 +9,39 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class PartidaController extends Controller
+class PartidaController extends Controller //controlador principal del gatiko
 {
     public function inicio(Request $request)
-    {
+    {   //muestra la sala principal (lobby) del jugador
         $yo = $request->user();
         if ($yo->esAdmin()) {
             return redirect()->route('admin.partidas.index');
         }
-
+        // 1. partidas creadas por otros jugadores que siguen esperando rival
         $disponibles = Partida::with('jugadorX')
             ->where('estado', Partida::ESPERANDO)
             ->where('jugador_x_id', '!=', $yo->id)
             ->latest()->get();
-
+        // 2. partidas propias que aún están abiertas (esperando rival o en curso)
         $misPartidas = Partida::with(['jugadorX', 'jugadorO'])
             ->de($yo->id)
             ->whereIn('estado', [Partida::ESPERANDO, Partida::EN_CURSO])
             ->latest()->get();
-
-        //jugadores "disponibles" = los que no están en una partida activa
+        // 3. obtiene los IDs de todos los jugadores que actualmente están dentro de una partida activa
         $ocupados = Partida::whereIn('estado', [Partida::ESPERANDO, Partida::EN_CURSO])
             ->get(['jugador_x_id', 'jugador_o_id'])
             ->flatMap(fn ($p) => [$p->jugador_x_id, $p->jugador_o_id])
             ->filter()->unique()->all();
-
+        // 4. lista de todos los demás jugadores registrados para mostrar quién está libre u ocupado
         $jugadores = User::where('role', User::JUGADOR)
             ->where('id', '!=', $yo->id)
             ->orderBy('name')->get();
-
         return view('lobby', compact('disponibles', 'misPartidas', 'ocupados', 'jugadores'));
     }
 
     public function crear(Request $request): RedirectResponse
-    {
+    {   //crea una nueva partida en estado 'esperando' y lleva al creador directo al tablero
         $partida = Partida::create(['jugador_x_id' => $request->user()->id]);
-
         return redirect()->route('partidas.show', $partida)
             ->with('success', 'Partida creada. Esperando a un rival…');
     }
@@ -56,13 +53,12 @@ class PartidaController extends Controller
 
         $unido = DB::transaction(function () use ($partida, $yo) {
             $p = Partida::whereKey($partida->id)->lockForUpdate()->first();
-
+            //verifica que siga esperando rival y que el creador no intente unirse contra sí mismo
             if (! $p || $p->estado !== Partida::ESPERANDO || $p->jugador_x_id === $yo) {
                 return false;
             }
-
             $creador = $p->jugador_x_id;
-            [$x, $o] = random_int(0, 1) ? [$creador, $yo] : [$yo, $creador];
+            [$x, $o] = random_int(0, 1) ? [$creador, $yo] : [$yo, $creador]; //qn llevara las 'X' y quién las 'O'
 
             $p->update([
                 'jugador_x_id' => $x,
@@ -83,16 +79,13 @@ class PartidaController extends Controller
 
     //solo los participantes (y el administrador, en modo lectura)
     public function show(Request $request, Partida $partida)
-    {
+    {  //muestra la vista del tablero de una partida
         $yo = $request->user();
-
         abort_unless($yo->esAdmin() || $partida->participa($yo->id), 403, 'No tienes acceso a esta partida.');
-
         $partida->load(['jugadorX', 'jugadorO', 'ganador']);
-
         $miSimbolo = $partida->simboloDe($yo->id);
         $esMiTurno = $partida->estado === Partida::EN_CURSO && $partida->jugadorEnTurnoId() === $yo->id;
-
+        //prepara el mensaje de estado que verá el usuario encima del tablero
         $mensaje = match (true) {
             $partida->estado === Partida::ESPERANDO => 'Esperando a que un rival se una…',
             $partida->estado === Partida::CANCELADA => 'La partida fue cancelada.',
@@ -118,7 +111,7 @@ class PartidaController extends Controller
     {
         $datos = $request->validate(['posicion' => ['required', 'integer', 'between:0,8']]);
         $yo = $request->user();
-
+        //validaciones y reglas del juefo
         $error = DB::transaction(function () use ($partida, $datos, $yo) {
             $p = Partida::whereKey($partida->id)->lockForUpdate()->firstOrFail();
 
@@ -138,7 +131,7 @@ class PartidaController extends Controller
             if ($casillas[$pos] !== '-') {
                 return 'Esa casilla ya está ocupada.';
             }
-
+            //la casilla en el tablero y guarda el historial
             $simbolo = $p->turno;
             $casillas[$pos] = $simbolo;
             $p->tablero = implode('', $casillas);
@@ -149,7 +142,7 @@ class PartidaController extends Controller
                 'posicion' => $pos,
                 'simbolo' => $simbolo,
             ]);
-
+            //revisa si con esta jugada hubo ganador, empate o se rinde
             if (Partida::calcularGanador($casillas)) {
                 $p->estado = Partida::TERMINADA;
                 $p->resultado = 'victoria';
@@ -169,7 +162,7 @@ class PartidaController extends Controller
         return redirect()->route('partidas.show', $partida)
             ->with($error ? 'error' : 'success', $error ?? 'Movimiento registrado.');
     }
-
+    //permite a un jugador salir de una partida activa
     public function abandonar(Request $request, Partida $partida): RedirectResponse
     {
         $yo = $request->user()->id;
